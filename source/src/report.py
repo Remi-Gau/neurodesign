@@ -25,7 +25,7 @@ def make_report(POP,outfile="NeuroDesign.pdf"):
     '''
     Function to create a report of a finished design optimisation.
     '''
-    if not type(POP.cov)==np.ndarray:
+    if type(POP.cov) != np.ndarray:
         POP.evaluate()
 
     styles=getSampleStyleSheet()

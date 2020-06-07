@@ -48,10 +48,10 @@ class design(object):
         self.experiment = experiment
 
         # assert whether design is valid
-        if not len(self.ITI) == experiment.n_trials:
+        if len(self.ITI) != experiment.n_trials:
             raise ValueError(
                 "length of design (ITI's) does not comply with experiment")
-        if not len(self.order) == experiment.n_trials:
+        if len(self.order) != experiment.n_trials:
             raise ValueError(
                 "length of design (orders) does not comply with experiment")
 
@@ -64,9 +64,9 @@ class design(object):
         :returns repcheck: Boolean indicating maximum repeats are respected
         '''
         for stim in range(self.experiment.n_stimuli):
-            repcheck = not ''.join(
-                str(e) for e in [stim] * maxrep) in ''.join(str(e) for e in self.order)
-            if repcheck == False:
+            repcheck = ''.join(
+                str(e) for e in [stim] * maxrep) not in ''.join(str(e) for e in self.order)
+            if not repcheck:
                 break
 
         return repcheck
@@ -80,15 +80,12 @@ class design(object):
 
         obscnt = Counter(self.order).values()
         obsprob = np.round(obscnt / np.sum(obscnt), decimals=2)
-        if not len(self.experiment.P) == len(obsprob):
+        if len(self.experiment.P) != len(obsprob):
             return False
 
         close = np.isclose(np.array(self.experiment.P),
                                np.array(obsprob), atol=0.001)
-        if not np.sum(close) == len(obsprob):
-                return False
-
-        return True
+        return np.sum(close) == len(obsprob)
 
     def crossover(self, other, seed=1234):
         """
@@ -140,10 +137,8 @@ class design(object):
                 self.experiment.n_stimuli, 1, replace=True)[0]
             mutated[mut] = mut_stim
 
-        offspring = design(order=mutated, ITI=self.ITI,
+        return design(order=mutated, ITI=self.ITI,
                            experiment=self.experiment)
-
-        return offspring
 
     def designmatrix(self):
         '''
@@ -157,9 +152,13 @@ class design(object):
             for x in np.arange(0, self.experiment.n_trials, self.experiment.restnum)[1:][::-1]:
                 orderli.insert(x, "R")
                 ITIli.insert(x, self.experiment.restdur)
-            ITIli = [y+self.experiment.trial_duration  if not x == "R" else y for x, y in zip(orderli, ITIli)]
+            ITIli = [
+                y + self.experiment.trial_duration if x != "R" else y
+                for x, y in zip(orderli, ITIli)
+            ]
+
             onsets = np.cumsum(ITIli)-self.experiment.trial_duration
-            self.onsets = [y for x, y in zip(orderli, onsets) if not x == "R"]
+            self.onsets = [y for x, y in zip(orderli, onsets) if x != "R"]
         else:
             ITIli = np.array(self.ITI) + self.experiment.trial_duration
             self.onsets = np.cumsum(ITIli) - self.experiment.trial_duration
@@ -440,7 +439,7 @@ class experiment(object):
         if self.ITImodel == "uniform":
             self.ITImean = (self.ITImax + self.ITImin) / 2
         if self.duration:
-            if not self.restnum == 0:
+            if self.restnum != 0:
                 # duration of block between rest
                 blockdurNR = self.restnum * \
                     (self.ITImean + self.trial_duration)
@@ -610,11 +609,7 @@ class optimisation(object):
         self.outdes = outdes
         self.folder = folder
         self.optimisation = optimisation
-        if seed:
-            self.seed = seed
-        else:
-            self.seed = np.random.randint(10000)
-
+        self.seed = seed if seed else np.random.randint(10000)
         self.designs = []
         self.optima = []
         self.bestdesign = None
@@ -624,11 +619,7 @@ class optimisation(object):
         '''
         Function to change the seed.
         '''
-        if self.seed < 4 * 10**9:
-            self.seed = self.seed + 1000
-        else:
-            self.seed = 1
-
+        self.seed = self.seed + 1000 if self.seed < 4 * 10**9 else 1
         return self
 
     def check_develop(self, design, weights=None):
@@ -678,7 +669,7 @@ class optimisation(object):
         :type seed: integer or None
         '''
         # weights
-        if weights == None:
+        if weights is None:
             weights = self.weights
 
         if not R:
@@ -712,7 +703,7 @@ class optimisation(object):
                 continue
             else:
                 self.designs.append(fulldes)
-                NDes = NDes + 1
+                NDes += 1
 
         return self
 
@@ -733,8 +724,8 @@ class optimisation(object):
                     ind = np.where(isone)
                     remove = ind[1][ind[0] == ind[0][0]]
                     self.designs = [des for ind, des in enumerate(
-                        self.designs) if not ind in remove]
-                    rm = rm + len(remove)
+                        self.designs) if ind not in remove]
+                    rm += len(remove)
 
         self.add_new_designs(R=[0, rm, 0], weights=weights)
 
@@ -801,7 +792,7 @@ class optimisation(object):
                     continue
                 else:
                     self.designs.append(baby)
-                    count = count + 1
+                    count += 1
 
         return self
 
@@ -880,7 +871,7 @@ class optimisation(object):
             bestdes = design(order=self.bestdesign.order,
                              ITI=self.bestdesign.ITI, experiment=self.exp)
             bestdes = self.check_develop(bestdes)
-            if not bestdes == False:
+            if bestdes != False:
                 self.designs.append(bestdes)
             self.bestdesign = None
 
@@ -900,7 +891,7 @@ class optimisation(object):
             self.add_new_designs(weights=[1, 0, 0, 0])
             # loop
             bar = progressbar.ProgressBar()
-            for generation in bar(range(self.preruncycles)):
+            for _ in bar(range(self.preruncycles)):
                 self.to_next_generation(seed=self.seed, weights=[1, 0, 0, 0])
                 if self.finished:
                     continue
@@ -911,7 +902,7 @@ class optimisation(object):
             self.add_new_designs(weights=[0, 1, 0, 0])
             # loop
             bar = progressbar.ProgressBar()
-            for generation in bar(range(self.preruncycles)):
+            for _ in bar(range(self.preruncycles)):
                 self.to_next_generation(seed=self.seed, weights=[0, 1, 0, 0])
                 if self.finished:
                     continue
@@ -922,7 +913,7 @@ class optimisation(object):
         self.add_new_designs()
         # loop
         bar = progressbar.ProgressBar()
-        for generation in bar(range(self.cycles)):
+        for _ in bar(range(self.cycles)):
             self.to_next_generation(seed=self.seed)
             if self.finished:
                     continue
@@ -938,7 +929,7 @@ class optimisation(object):
         for d in range(len(self.designs)):
             hrf = []
             for stim in range(shape[1]):
-                hrf = hrf + self.designs[d].Xconv[:, stim].tolist()
+                hrf += self.designs[d].Xconv[:, stim].tolist()
             des[:, d] = hrf
         clus = sklearn.cluster.k_means(des.T, self.outdes,random_state=self.seed)[1]
         out = []
@@ -952,7 +943,7 @@ class optimisation(object):
             for d in id_ordered:
                 cl.append(c)
                 des.append(self.designs[d])
-                first = first+1
+                first += 1
         self.designs = des
         self.out = out
         self.clus = cl
@@ -966,68 +957,68 @@ class optimisation(object):
     def download(self):
         if not self.folder:
             raise ValueError('No folder defined to download output.')
+
+        if self.cov is None:
+            self.evaluate()
+
+        # empty folder
+        if os.path.exists(self.folder):
+            files = os.listdir(self.folder)
+            for f in files:
+                if 'design_' in f:
+                    shutil.rmtree(os.path.join(self.folder, f))
         else:
-            if self.cov==None:
-                self.evaluate()
+            os.mkdir(self.folder)
 
-            # empty folder
-            if os.path.exists(self.folder):
-                files = os.listdir(self.folder)
-                for f in files:
-                    if 'design_' in f:
-                        shutil.rmtree(os.path.join(self.folder, f))
-            else:
-                os.mkdir(self.folder)
+        reportfile = "report.pdf"
+        report.make_report(self, os.path.join(self.folder, reportfile))
 
-            reportfile = "report.pdf"
-            report.make_report(self, os.path.join(self.folder, reportfile))
+        files = []
 
-            files = []
+        for des in range(self.outdes):
 
-            for des in range(self.outdes):
+            os.mkdir(os.path.join(self.folder, "design_" + str(des)))
 
-                os.mkdir(os.path.join(self.folder, "design_" + str(des)))
+            design = self.designs[self.out[des]]
 
-                design = self.designs[self.out[des]]
+            for stim in range(self.exp.n_stimuli):
 
-                for stim in range(self.exp.n_stimuli):
+                onsetsfile = os.path.join(
+                    "design_" + str(des), "stimulus_" + str(stim) + ".txt")
 
-                    onsetsfile = os.path.join(
-                        "design_" + str(des), "stimulus_" + str(stim) + ".txt")
-
-                    onsubsets = [str(x) for x in np.array(design.onsets)[
-                        np.array(design.order) == stim]]
-                    f = open(os.path.join(self.folder, onsetsfile), 'w+')
-                    for line in onsubsets:
-                        f.write(line)
-                        f.write("\n")
-                    f.close()
-
-                    files.append(onsetsfile)
-
-                itifile = os.path.join("design_" + str(des), "ITIs.txt")
-
-                f = open(os.path.join(self.folder, itifile), 'w+')
-                for line in design.ITI:
-                    f.write(str(line))
+                onsubsets = [str(x) for x in np.array(design.onsets)[
+                    np.array(design.order) == stim]]
+                f = open(os.path.join(self.folder, onsetsfile), 'w+')
+                for line in onsubsets:
+                    f.write(line)
                     f.write("\n")
                 f.close()
 
-                files.append(itifile)
-            files.append(reportfile)
+                files.append(onsetsfile)
 
-            # zip up
-            zip_subdir = "OptimalDesign"
-            self.zip_filename = "%s.zip" % zip_subdir
-            self.file = StringIO.StringIO()
-            zf = zipfile.ZipFile(self.file, "w")
+            itifile = os.path.join("design_" + str(des), "ITIs.txt")
 
-            for fpath in files:
-                zf.write(os.path.join(self.folder, fpath),
-                         os.path.join(zip_subdir, fpath))
-            zf.close()
+            f = open(os.path.join(self.folder, itifile), 'w+')
+            for line in design.ITI:
+                f.write(str(line))
+                f.write("\n")
+            f.close()
 
-            return self
+            files.append(itifile)
+        files.append(reportfile)
+
+        # zip up
+        zip_subdir = "OptimalDesign"
+        self.zip_filename = "%s.zip" % zip_subdir
+        self.file = StringIO.StringIO()
+        zf = zipfile.ZipFile(self.file, "w")
+
+        for fpath in files:
+            zf.write(os.path.join(self.folder, fpath),
+                     os.path.join(zip_subdir, fpath))
+        zf.close()
+
+        return self
 
     @staticmethod
     def pearsonr(signals, nstim):
@@ -1059,8 +1050,7 @@ def _find_new_resolution(TR,res):
     difs = np.abs(resdivisor-sorted)
     minind = np.where(difs==np.min(difs))[0]
     divisor = sorted[minind][0]
-    newres = TR/divisor
-    return newres
+    return TR/divisor
 
 def _round_to_resolution(inmat,res):
     out = res*np.floor(np.array(inmat)/res)

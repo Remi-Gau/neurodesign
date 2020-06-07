@@ -117,7 +117,6 @@ def _compute_lambda(lower,upper,mean):
     check = _rtexp(100000,opt.x[0],lower,upper,seed=1000)
     if not np.isclose(np.mean(check),mean,rtol=0.1):
         raise ValueError("Error when figuring out lambda for exponential distribution: can't compute lambda.")
-        return o
     else:
         return opt.x[0]
 
@@ -129,5 +128,4 @@ def _rtexp(ntrials,lam,lower,upper,seed):
     a = float(lower)
     b = float(upper)
     np.random.seed(seed)
-    smp = stats.truncexpon((b-a)/lam,loc=a,scale=lam).rvs(ntrials)
-    return smp
+    return stats.truncexpon((b-a)/lam,loc=a,scale=lam).rvs(ntrials)

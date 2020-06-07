@@ -72,7 +72,7 @@ class Msequence(object):
         if mLen > len(ms):
             rep = int(np.ceil(mLen/len(ms)))
             ms = np.tile(ms,rep)
-        if not mLen%len(ms) == 0:
+        if mLen % len(ms) != 0:
             ms = ms[:mLen]
         ms = [int(x) for x in ms]
         orders.append(ms)
@@ -625,8 +625,7 @@ class Msequence(object):
         else:
             print('qadd base %s not supported yet'%base)
 
-        y = amat[a,b]
-        return y
+        return amat[a,b]
 
     @staticmethod
     def qmult(a,b,base):
@@ -667,5 +666,4 @@ class Msequence(object):
         else:
             print('qmult base %s not supported yet'%base)
 
-        y = amult[a,b]
-        return y
+        return amult[a,b]
